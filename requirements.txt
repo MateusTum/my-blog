@@ -1,6 +1,8 @@
+Flask-Gravatar==0.5.0
 Flask_CKEditor==0.5.0
 Bootstrap_Flask==2.3.2
 Flask==2.3.2
+Flask_Login==0.6.3
 flask_sqlalchemy==3.1.1
 Flask_WTF==1.2.1
 WTForms==3.1.0
