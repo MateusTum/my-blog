@@ -1,16 +1,13 @@
 {% include "header.html" %}
 
 <!-- Page Header-->
-<header
-  class="masthead"
-  style="background-image: url('../static/assets/img/home-bg.jpg')"
->
+<header class="masthead" style="background-image: url('../static/assets/img/home-bg.jpg')">
   <div class="container position-relative px-4 px-lg-5">
     <div class="row gx-4 gx-lg-5 justify-content-center">
       <div class="col-md-10 col-lg-8 col-xl-7">
         <div class="site-heading">
           <h1>My Blog by Mateus Tum</h1>
-          <span class="subheading">A Software Developer</span>
+          <span class="subheading">A software developer.</span>
         </div>
       </div>
     </div>
@@ -29,9 +26,12 @@
         </a>
         <p class="post-meta">
           Posted by
-          <a href="#">{{ post.author }}</a>
+          <!--          TODO: FIX THIS TO SHOW ALL AUTHORS FIRST AND LAST NAME -->
+          <a href="#">{{ post.authors[0].first_name + ' ' + post.authors[0].last_name }}</a>
           on {{ post.date }}
-          <a href="{{ url_for('delete_post', post_id=post.id) }}">✘</a>
+          {% if current_user.role == 'admin': %}
+          <a href="{{url_for('delete_post', post_id=post.id) }}">✘</a>
+          {% endif %}
         </p>
       </div>
       <!-- Divider-->
@@ -39,13 +39,12 @@
       {% endfor %}
 
       <!-- New Post -->
+      <!-- TODO: Only show Create Post button if user id is 1 (admin user) -->
+      {% if current_user.role == 'admin': %}
       <div class="d-flex justify-content-end mb-4">
-        <a
-          class="btn btn-primary float-right"
-          href="{{ url_for('add_new_post') }}"
-          >Create New Post</a
-        >
+        <a class="btn btn-primary float-right" href="{{url_for('add_new_post')}}">Create New Post</a>
       </div>
+      {% endif %}
 
       <!-- Pager-->
       <div class="d-flex justify-content-end mb-4">
