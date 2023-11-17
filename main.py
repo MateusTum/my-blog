@@ -6,12 +6,13 @@ from flask_login import UserMixin, login_user, LoginManager, current_user, logou
 from flask_sqlalchemy import SQLAlchemy
 from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
-from forms import CreatePostForm, RegisterForm, LoginForm, CommentForm
+from forms import CreatePostForm, RegisterForm, LoginForm, CommentForm, ProfileForm
 from gravatar import *
+from secret_data import SECRET_KEY
 
 # ============================== GENERAL CONFIGS ==============================
 app = Flask(__name__)
-app.config['SECRET_KEY'] = '8BYkEfBA6O6donzWlSihBXox7C0sKR6b'
+app.config['SECRET_KEY'] = SECRET_KEY
 
 # Bootstrap5
 Bootstrap5(app)
@@ -35,7 +36,7 @@ db.init_app(app)
 # ASSOCIATION TABLES
 user_post_association = db.Table('user_post_association', db.Model.metadata,
                                  db.Column('user_id', db.Integer, db.ForeignKey('blog_users.id')),
-                                 db.Column('post_id', db.Integer, db.ForeignKey('blog_posts.id')),
+                                 db.Column('post_id', db.Integer, db.ForeignKey('blog_posts.id'))
                                  )
 
 user_comment_association = db.Table('user_comment_association', db.Model.metadata,
@@ -43,19 +44,38 @@ user_comment_association = db.Table('user_comment_association', db.Model.metadat
                                     db.Column('comment_id', db.Integer, db.ForeignKey('blog_comments.id'))
                                     )
 
+user_user_association = db.Table('user_user_association', db.Model.metadata,
+                                 db.Column('follower_id', db.Integer, db.ForeignKey('blog_users.id')),
+                                 db.Column('followed_id', db.Integer, db.ForeignKey('blog_users.id'))
+                                 )
+
 
 # DATABASE TABLES
 class User(db.Model, UserMixin):
     __tablename__ = "blog_users"
     id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String, unique=True, nullable=False)
     email = db.Column(db.String, unique=True, nullable=False)
     password = db.Column(db.String, nullable=False)
+    role = db.Column(db.String, nullable=False)
+    # Personal info below
     first_name = db.Column(db.String, nullable=False)
     last_name = db.Column(db.String, nullable=False)
-    role = db.Column(db.String, nullable=False)
+    date_of_birth = db.Column(db.DateTime, nullable=True)
+    city = db.Column(db.String, nullable=True)
+    country = db.Column(db.String, nullable=True)
     gravatar_url = db.Column(db.String)
+    # End of personal info
     posts = db.Relationship("BlogPost", secondary=user_post_association, back_populates="authors")
     comments = db.Relationship("Comment", back_populates="author")
+    followed = db.Relationship("User", secondary=user_user_association,
+                               primaryjoin=(user_user_association.c.follower_id == id),
+                               secondaryjoin=(user_user_association.c.followed_id == id),
+                               back_populates="followers")
+    followers = db.Relationship("User", secondary=user_user_association,
+                                primaryjoin=(user_user_association.c.followed_id == id),
+                                secondaryjoin=(user_user_association.c.follower_id == id),
+                                back_populates="followed")
 
 
 class BlogPost(db.Model):
@@ -79,9 +99,9 @@ class Comment(db.Model):
     author = db.Relationship("User", back_populates="comments")
     post_id = db.Column(db.Integer, db.ForeignKey("blog_posts.id"))
     post = db.Relationship("BlogPost", back_populates="comments")
+
+
 # ============================== END OF TABLES ==============================
-
-
 # ============================== WRAPPER FUNCTION FOR ADMINS ==============================
 def admin_only(func):
     @wraps(func)
@@ -91,9 +111,17 @@ def admin_only(func):
         return func(*args, **kwargs)
 
     return check_admin
+
+
+def user_locked(func):
+    @wraps(func)
+    def check_user(*args, **kwargs):
+        return func(*args, **kwargs, username=current_user.username)
+
+    return check_user
+
+
 # ============================== END OF WRAPPER FUNCTION ==============================
-
-
 with app.app_context():
     db.create_all()
 
@@ -107,29 +135,46 @@ def load_user(user_id):
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
-    form = RegisterForm()
-    if request.method == 'POST' and form.validate_on_submit:
+    def check_if_email_already_exists():
         email_to_register = request.form.get('email')
-        query = User.query.filter(User.email == email_to_register)
-        result = query.scalar()
-        if result:
+        email_query = User.query.filter(User.email == email_to_register)
+        email_query_result = email_query.scalar()
+        return email_query_result
+
+    def check_if_username_already_exists():
+        username_to_register = request.form.get('username')
+        username_query = User.query.filter(User.username == username_to_register)
+        username_query_result = username_query.scalar()
+        return username_query_result
+
+    def get_hashed_password():
+        crude_password = request.form.get('password')
+        hashed_password = generate_password_hash(crude_password, method='pbkdf2:sha256', salt_length=8)
+        return hashed_password
+
+    register_form = RegisterForm()
+
+    if request.method == 'POST' and register_form.validate_on_submit:
+        if check_if_email_already_exists():
             flash('Email already in use')
             return redirect(url_for('login'))
+        if check_if_username_already_exists():
+            flash('Username already in use')
+            return redirect(url_for('login'))
         else:
-            crude_password = request.form.get('password')
-            hashed_password = generate_password_hash(crude_password, method='pbkdf2:sha256', salt_length=8)
             new_user = User(
                 first_name=request.form.get('first_name').title(),  # type: ignore
                 last_name=request.form.get('last_name').title(),  # type: ignore
+                username=request.form.get('username'),  # type: ignore
                 email=request.form.get('email'),  # type: ignore
-                password=hashed_password,  # type: ignore
-                role="admin"  # type: ignore
+                password=get_hashed_password(),  # type: ignore
+                role="user",  # type: ignore
+                gravatar_url=get_gravatar_url(email=request.form.get('email'))  # type: ignore
             )
             db.session.add(new_user)
-            new_user.gravatar_url = get_gravatar_url(email=new_user.email)
             db.session.commit()
             return redirect(url_for('login'))
-    return render_template("register.html", form=form)
+    return render_template("register.html", form=register_form)
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -261,6 +306,49 @@ def about():
 @app.route("/contact")
 def contact():
     return render_template("contact.html")
+
+
+@app.route("/user/<username>", methods=['GET'])
+@login_required
+def get_user_profile(username):
+    user_query = User.query.filter(User.username == username)
+    user = user_query.scalar()
+    show_edit_options = True if current_user == user else False
+    return render_template("user-profile.html",
+                           user=user,
+                           edit=show_edit_options,
+                           followers_number=len(user.followers),
+                           followed_number=len(user.followed)
+                           )
+
+
+@app.route("/edit-profile", methods=['GET', 'POST'])
+@login_required
+@user_locked
+def edit_user_profile(username):
+    user_query = User.query.filter(User.username == username)
+    user = user_query.scalar()
+    form = ProfileForm(
+        username=user.username,
+        first_name=user.first_name,
+        last_name=user.last_name,
+        date_of_birth=user.date_of_birth,
+        # profile_picture=
+        city=user.city,
+        country=user.country
+    )
+    if request.method == 'POST' and form.validate_on_submit:
+        user.username = form.username.data
+        user.first_name = form.first_name.data
+        user.last_name = form.last_name.data
+        user.date_of_birth = form.date_of_birth.data
+        # user.profile_picture = form.profile_picture.data
+        user.city = form.city.data
+        user.country = form.country.data
+        db.session.commit()
+        return redirect(url_for("get_user_profile", username=user.username))
+
+    return render_template("edit-profile.html", user=user, form=form)
 
 
 # ============================== END OF APP ROUTES ==============================

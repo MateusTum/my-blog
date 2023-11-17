@@ -1,0 +1,33 @@
+{% include "header.html" %}
+
+<!-- Page Header-->
+<header class="masthead" style="background-image: url('../static/assets/img/home-bg.jpg')">
+  <div class="container position-relative px-4 px-lg-5">
+    <div class="row gx-4 gx-lg-5 justify-content-center">
+      <div class="col-md-10 col-lg-8 col-xl-7">
+        <div class="site-heading">
+          <h1>{{ user.username }}</h1>
+          <span class="subheading">Followers: {{ followers_number }}</span>
+          <span class="subheading">Following: {{ followed_number }}</span>
+          <span class="subheading">City: {{ user.city }}</span>
+          <span class="subheading">Country: {{ user.country }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- Main Content-->
+
+<div class="container px-4 px-lg-5">
+  <div class="row gx-4 gx-lg-5 justify-content-center">
+    <!-- Edit Profile -->
+      {% if edit: %}
+      <div class="d-flex justify-content-end mb-4">
+        <a class="btn btn-primary float-right" href="{{url_for('edit_user_profile')}}">Edit Profile</a>
+      </div>
+      {% endif %}
+  </div>
+</div>
+
+{% include "footer.html" %}
