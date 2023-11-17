@@ -9,10 +9,11 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from forms import CreatePostForm, RegisterForm, LoginForm, CommentForm, ProfileForm
 from gravatar import *
 from secret_data import SECRET_KEY
+import os
 
 # ============================== GENERAL CONFIGS ==============================
 app = Flask(__name__)
-app.config['SECRET_KEY'] = SECRET_KEY
+app.config['SECRET_KEY'] = os.environ.get('FLASK_KEY')
 
 # Bootstrap5
 Bootstrap5(app)
@@ -26,7 +27,7 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 
 # CONNECT TO DB
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///posts.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get("DB_URI", "sqlite:///posts.db")
 db = SQLAlchemy()
 db.init_app(app)
 # ============================== END OF GENERAL CONFIGS ==============================
@@ -353,4 +354,4 @@ def edit_user_profile(username):
 # ============================== END OF APP ROUTES ==============================
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5002)
+    app.run(debug=False)
