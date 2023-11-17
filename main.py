@@ -8,7 +8,6 @@ from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
 from forms import CreatePostForm, RegisterForm, LoginForm, CommentForm, ProfileForm
 from gravatar import *
-from secret_data import SECRET_KEY
 import os
 
 # ============================== GENERAL CONFIGS ==============================
